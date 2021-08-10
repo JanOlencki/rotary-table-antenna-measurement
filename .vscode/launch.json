@@ -10,10 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/antenna_meas_cli/cli.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/src/",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}/src/"
-            }
+            "cwd": "${workspaceFolder}/"
         }
     ]
 }
