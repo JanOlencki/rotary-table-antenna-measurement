@@ -3,6 +3,7 @@ from vna_anritsu_MS20xxC_api import vna_api
 def cli():
     devices = vna_api.list_visa_devices()
     vna = vna_api.VNA(devices[0])
+    print(vna.get_trace_data_s2p())
     print(devices)
     print(vna)
 
