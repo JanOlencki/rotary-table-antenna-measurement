@@ -44,7 +44,7 @@ def convert_from_trace_data(val: str) -> List[str]:
     len_dig_count = int(val[1])+2
     if len(val) <= len_dig_count:
          return None
-    return val[len_dig_count:].split(",")
+    return val[len_dig_count:].split(",")[:-1]
 def convert_data_to_complex(data: List):
     real = np.asarray(data, dtype=float)
     if len(real) < 1:
@@ -76,7 +76,9 @@ class VNA:
         return self.inst.query("*IDN?")
 
     def get_traces_data_as_s2p(self) -> rf.Network:
-        pass
+        s2p = rf.Network()
+        for trace, sparam in TRACES_MAPPING.items():
+
     def set_traces_as_s2p(self) -> None:
         self.set_traces_count(len(TRACES_MAPPING))
         for trace, sparam in TRACES_MAPPING.items():
