@@ -9,7 +9,6 @@ import skrf as rf
 import numpy as np
 import math
 
-rm = pyvisa.ResourceManager()
 TRACES_MAPPING = {
     1: SParam.S11,
     2: SParam.S12,
@@ -17,10 +16,20 @@ TRACES_MAPPING = {
     4: SParam.S22
 }
 
-def list_visa_devices() -> Tuple[str, ...]:
-    return rm.list_resources()
+def list_visa_instruments(resource_manager: pyvisa.ResourceManager) -> Tuple[str, ...]:
+    return resource_manager.list_resources()
+def find_vna_instrument_id(resource_manager: pyvisa.ResourceManager) -> str:
+    instruments = list_visa_instruments(resource_manager)
+    for inst_id in instruments:
+        inst = resource_manager.open_resource(inst_id)
+        if is_instrument_supported(inst.query("*IDN?")):
+            inst.close()
+            return inst_id
+    inst.close()
+    return None
+
 def is_instrument_supported(identification) -> bool:
-    idn = identification.split(",")
+    idn = identification[1:-1].split(",")
     pat = re.compile("^MS20[0-9]{2}C")
     return len(idn) > 1 and idn[0] == "Anritsu" and pat.match(idn[1]) is not None
 def convert_traces_data_to_s2p(trace_data: List[np.ndarray], freq_setting: FrequencySettings):
@@ -56,8 +65,8 @@ def convert_header_to_dict(data: List[str]) -> Dict[str, str]:
     return header
 
 class VNA: 
-    def __init__(self, instrument_id: str):
-        self.inst = rm.open_resource(instrument_id)
+    def __init__(self, resource_manager: pyvisa.ResourceManager, instrument_id: str):
+        self.inst = resource_manager.open_resource(instrument_id)
     
     def __del___(self):
         if self.inst is not None:
@@ -78,7 +87,7 @@ class VNA:
     def set_traces_count(self, traces_count: int) -> None:
         self.inst.write(f":TRACE:TOT {traces_count:d}")
     def get_trace_spar(self, trace_num: int) -> str:
-        return self.inst.query(f":TRAC{trace_num}:SPAR?")
+        return self.inst.query(f":TRAC{trace_num}:SPAR?").lower()
     def set_trace_spar(self, trace_num: int, sparam: str) -> None:
         self.inst.write(f":TRAC{trace_num:d}:SPAR {sparam}")
     def get_trace_domain(self, trace_num: int) -> str:
