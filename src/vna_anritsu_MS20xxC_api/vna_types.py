@@ -1,11 +1,7 @@
 from collections import namedtuple
 from typing import Final
 
-class FrequencySettings:
-    start: int = None
-    stop: int = None
-    points_num: int = None
-    
+FrequencySettings = namedtuple("FrequencySettings", ("start", "stop", "points_num"))  
 
 class SParam:
     S11: Final = "s11"
