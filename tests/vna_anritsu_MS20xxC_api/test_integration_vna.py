@@ -7,23 +7,24 @@ def test_listing_resources():
     rm = pyvisa.ResourceManager()
     devices = vna_api.list_visa_instruments(rm)
     assert len(devices) > 0
-    assert vna_api.find_vna_instrument_id(rm) is not None
+    assert vna_api.find_vna_instrument_idn(rm) is not None
 
 def get_vna():
     rm = pyvisa.ResourceManager()
-    id = vna_api.find_vna_instrument_id(rm)
+    id = vna_api.find_vna_instrument_idn(rm)
     return vna_api.VNA(rm, id)
+def wait_between_changes():
+    time.sleep(3)
 
 def test_freq_changing():
     vna = get_vna()
-    settings_before = vna.get_freq_settings()
-    assert settings_before is not None
-    settings = FrequencySettings(100E3, 2E9, 1000)
-    vna.set_freq_settings(*settings)
-    assert vna.get_freq_settings() == settings
-    time.sleep(3)
-    vna.set_freq_settings(*settings_before)
-    assert vna.get_freq_settings() == settings_before
+    settings = [vna.get_freq_settings(), FrequencySettings(100E3, 2E9, 1000), FrequencySettings(200E3, 3E9, 2000), None]
+    settings[-1] = settings[0]
+    for setting in settings:
+        assert setting is not None
+        vna.set_freq_settings(*setting)
+        assert vna.get_freq_settings() == setting
+        wait_between_changes()
 
 def test_traces_count_changing():
     vna = get_vna()

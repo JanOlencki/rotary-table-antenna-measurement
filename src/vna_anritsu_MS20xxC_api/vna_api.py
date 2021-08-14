@@ -16,17 +16,19 @@ TRACES_MAPPING = {
     4: SParam.S22
 }
 
-def list_visa_instruments(resource_manager: pyvisa.ResourceManager) -> Tuple[str, ...]:
-    return resource_manager.list_resources()
-def find_vna_instrument_id(resource_manager: pyvisa.ResourceManager) -> str:
-    instruments = list_visa_instruments(resource_manager)
-    for inst_id in instruments:
-        inst = resource_manager.open_resource(inst_id)
-        if is_instrument_supported(inst.query("*IDN?")):
-            inst.close()
-            return inst_id
-    inst.close()
+def list_visa_instruments(rm: pyvisa.ResourceManager) -> Tuple[str, ...]:
+    return rm.list_resources()
+def find_vna_instrument_idn(rm: pyvisa.ResourceManager) -> str:
+    instruments = list_visa_instruments(rm)
+    for inst_name in instruments:
+        if is_instrument_supported(get_instrument_idn(rm, inst_name)):
+            return inst_name
     return None
+def get_instrument_idn(resource_manager: pyvisa.ResourceManager, inst_name: str) -> str:
+    inst = resource_manager.open_resource(inst_name)
+    idn = inst.query("*IDN?")
+    inst.close()
+    return idn
 
 def is_instrument_supported(identification) -> bool:
     idn = identification[1:-1].split(",")
@@ -77,7 +79,7 @@ class VNA:
 
     def get_traces_data_as_s2p(self) -> rf.Network:
         s2p = rf.Network()
-        for trace, sparam in TRACES_MAPPING.items():
+        #for trace, sparam in TRACES_MAPPING.items():
 
     def set_traces_as_s2p(self) -> None:
         self.set_traces_count(len(TRACES_MAPPING))
