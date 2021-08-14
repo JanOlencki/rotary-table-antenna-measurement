@@ -1,7 +1,6 @@
 from collections import namedtuple
 from typing import Final
 
-# TODO: Claryfi types
 FrequencySettings = namedtuple("FrequencySettings", ("start", "stop", "points_num"))  
 
 class SParam:
