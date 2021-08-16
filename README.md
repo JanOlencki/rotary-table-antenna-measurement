@@ -4,6 +4,7 @@
 ## Python dependencies
 - pyvisa *v1.11*
 - scikit-rf *v0.19*
+- click *v8.0*
 - crc8 *v0.1*
 ## Build dependencies
 - pytest *v6.2*

@@ -5,11 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: antenna_meas.main",
+            "name": "Python: antenna_meas.list",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/src/antenna_meas_cli/cli.py",
             "console": "integratedTerminal",
+            "args": ["list-devices"],
+            "cwd": "${workspaceFolder}/"
+        },
+        {
+            "name": "Python: antenna_meas.help",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/antenna_meas_cli/cli.py",
+            "console": "integratedTerminal",
+            "args": ["--help"],
             "cwd": "${workspaceFolder}/"
         }
     ]
