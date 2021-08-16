@@ -42,7 +42,7 @@ def is_instrument_supported(identification) -> bool:
     idn = identification[1:-1].split(",")
     pat = re.compile("^MS20[0-9]{2}C")
     return len(idn) > 1 and idn[0] == "Anritsu" and pat.match(idn[1]) is not None
-def convert_traces_data_to_s2p(traces_data: Dict[str, np.ndarray], freq_data: FrequencySettings) -> rf.Network:
+def convert_traces_data_to_s2p(traces_data: Dict[str, np.ndarray], freq_data: np.ndarray) -> rf.Network:
     s2p = np.ndarray(shape=(2,2,len(freq_data)))
     for sparam, data in traces_data.items():
         if len(data) != len(freq_data):
@@ -112,7 +112,7 @@ class VNA:
                 raise IOError(EXCEPTION_PREFIX + "Unable to readout traces data, frequency data differs between traces.")
             freq = trace_freq
 
-        return convert_traces_data_to_s2p()
+        return convert_traces_data_to_s2p(data, freq)
 
     def set_traces_as_s2p(self) -> None:
         self.set_traces_count(len(TRACES_MAPPING))

@@ -1,5 +1,6 @@
 import pyvisa
 import time
+import numpy as np
 from vna_anritsu_MS20xxC_api import vna_api
 from vna_anritsu_MS20xxC_api.vna_types import FrequencySettings, SParam
 
@@ -44,3 +45,14 @@ def test_trace_spar():
     time.sleep(3)
     vna.set_trace_spar(trace, spar)
     assert vna.get_trace_spar(trace) == spar
+
+def test_convert_to_s2p():
+    data = {
+        vna_api.SParam.S11: np.array([0+1j, 1+0j, 1+1j]),
+        vna_api.SParam.S12: np.array([1+1j, 1+0j, 1+1j]),
+        vna_api.SParam.S21: np.array([1+0j, 1+0j, 1+1j]),
+        vna_api.SParam.S22: np.array([0+1j, 1+0j, 1+1j])
+    }
+    freq = np.array([1, 2, 3])
+    s2p = vna_api.convert_traces_data_to_s2p(data, freq)
+    s2p.plot_s_db()
