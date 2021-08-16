@@ -1,6 +1,7 @@
 import pyvisa
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 from vna_anritsu_MS20xxC_api import vna_api
 from vna_anritsu_MS20xxC_api.vna_types import FrequencySettings, SParam
 
@@ -56,3 +57,5 @@ def test_convert_to_s2p():
     freq = np.array([1, 2, 3])
     s2p = vna_api.convert_traces_data_to_s2p(data, freq)
     s2p.plot_s_db()
+    plt.show()
+    assert True

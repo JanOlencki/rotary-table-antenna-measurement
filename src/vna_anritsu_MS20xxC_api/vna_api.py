@@ -43,18 +43,18 @@ def is_instrument_supported(identification) -> bool:
     pat = re.compile("^MS20[0-9]{2}C")
     return len(idn) > 1 and idn[0] == "Anritsu" and pat.match(idn[1]) is not None
 def convert_traces_data_to_s2p(traces_data: Dict[str, np.ndarray], freq_data: np.ndarray) -> rf.Network:
-    s2p = np.ndarray(shape=(2,2,len(freq_data)))
+    s2p = np.zeros(shape=(len(freq_data),2,2), dtype=np.complex128)
     for sparam, data in traces_data.items():
         if len(data) != len(freq_data):
             raise ValueError("Unable to create s2p matrix from traces_data. Lengths of trace_data and freq_data are different.")
         if sparam == SParam.S11:
-            s2p[0][0] = data
+            s2p[:, 0, 0] = data
         elif sparam == SParam.S12:
-            s2p[0][1] = data
+            s2p[:, 0, 1] = data
         elif sparam == SParam.S21:
-            s2p[1][0] = data
+            s2p[:, 1, 0] = data
         elif sparam == SParam.S22:
-            s2p[1][1] = data
+            s2p[:, 1, 1] = data
     return rf.Network(f=freq_data, s=s2p)
 def convert_from_NR1(val: str) -> int:
     return int(val)
