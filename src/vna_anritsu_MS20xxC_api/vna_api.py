@@ -1,6 +1,7 @@
 from typing import List, Tuple, Dict
 
 from numpy.core.fromnumeric import trace
+from pyvisa.constants import VI_ERROR_TMO
 from vna_anritsu_MS20xxC_api.vna_types import *
 
 import pyvisa
@@ -19,7 +20,7 @@ EXCEPTION_PREFIX = "VNA_COMMUNICATION: "
 
 def list_visa_instruments(rm: pyvisa.ResourceManager) -> Tuple[str, ...]:
     return rm.list_resources()
-def find_vna_instrument_idn(rm: pyvisa.ResourceManager) -> str:
+def find_vna_instrument_by_idn(rm: pyvisa.ResourceManager) -> str:
     instruments = list_visa_instruments(rm)
     for inst_name in instruments:
         if is_instrument_supported(get_instrument_idn(rm, inst_name)):
@@ -27,15 +28,21 @@ def find_vna_instrument_idn(rm: pyvisa.ResourceManager) -> str:
     return None
 def get_instrument_idn(resource_manager: pyvisa.ResourceManager, inst_name: str) -> str:
     inst = resource_manager.open_resource(inst_name)
-    idn = inst.query("*IDN?")
-    inst.close()
+    try:
+        idn = inst.query("*IDN?")
+    except pyvisa.VisaIOError as err:
+        return None
+    finally:
+        inst.close()
     return idn
 
 def is_instrument_supported(identification) -> bool:
+    if identification is None:
+        return False
     idn = identification[1:-1].split(",")
     pat = re.compile("^MS20[0-9]{2}C")
     return len(idn) > 1 and idn[0] == "Anritsu" and pat.match(idn[1]) is not None
-def convert_traces_data_to_s2p(traces_data: Dict[np.ndarray], freq_data: FrequencySettings) -> rf.Network:
+def convert_traces_data_to_s2p(traces_data: Dict[str, np.ndarray], freq_data: FrequencySettings) -> rf.Network:
     s2p = np.ndarray(shape=(2,2,len(freq_data)))
     for sparam, data in traces_data.items():
         if len(data) != len(freq_data):
@@ -59,7 +66,11 @@ def convert_from_trace_data(val: str) -> List[str]:
     len_dig_count = int(val[1])+2
     if len(val) <= len_dig_count:
          return None
-    return val[len_dig_count:].split(",")[:-1]
+    splited = val[len_dig_count:].split(",")
+    if len(splited[-1]) == 0:
+        return splited[:-1]
+    else:
+        return splited
 def convert_data_to_complex(data: List):
     real = np.asarray(data, dtype=float)
     if len(real) < 1:

@@ -7,11 +7,11 @@ def test_listing_resources():
     rm = pyvisa.ResourceManager()
     devices = vna_api.list_visa_instruments(rm)
     assert len(devices) > 0
-    assert vna_api.find_vna_instrument_idn(rm) is not None
+    assert vna_api.find_vna_instrument_by_idn(rm) is not None
 
 def get_vna():
     rm = pyvisa.ResourceManager()
-    id = vna_api.find_vna_instrument_idn(rm)
+    id = vna_api.find_vna_instrument_by_idn(rm)
     return vna_api.VNA(rm, id)
 def wait_between_changes():
     time.sleep(3)

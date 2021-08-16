@@ -16,6 +16,7 @@ def test_converting_trace_data():
     assert vna_api.convert_from_trace_data("#12") == None
     assert vna_api.convert_from_trace_data("#12test") == ["test"]
     assert vna_api.convert_from_trace_data("#242test") == ["test"]
+    assert vna_api.convert_from_trace_data("#242test,") == ["test"]
     assert vna_api.convert_from_trace_data("#242test,test") == ["test","test"]
 
     assert (vna_api.convert_data_to_complex([]) == []).all()
