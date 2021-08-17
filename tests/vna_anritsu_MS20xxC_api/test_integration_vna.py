@@ -64,8 +64,10 @@ def test_read_s2p():
     vna = get_vna()
     vna.set_freq_settings(3E6, 10E9, 101)
     vna.set_traces_as_s2p()
-    # TODO: Add waitimg for aqusition
+    vna.set_is_sweep_continuous(False)
+    vna.start_single_sweep_await()
     s2p = vna.get_traces_data_as_s2p()
     s2p.plot_s_db()
     plt.show()
+    vna.set_is_sweep_continuous(True)
     assert True

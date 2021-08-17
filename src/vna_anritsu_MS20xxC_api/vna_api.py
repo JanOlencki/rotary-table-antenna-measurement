@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import List, NoReturn, Tuple, Dict
 
 from numpy.core.fromnumeric import trace
 from pyvisa.constants import VI_ERROR_TMO
@@ -8,7 +8,7 @@ import pyvisa
 import re
 import skrf as rf
 import numpy as np
-import math
+import time
 
 TRACES_MAPPING = {
     1: SParam.S11,
@@ -44,7 +44,7 @@ def is_instrument_supported(identification) -> bool:
     return len(idn) > 1 and idn[0] == "Anritsu" and pat.match(idn[1]) is not None
 def convert_traces_data_to_s2p(traces_data: Dict[str, np.ndarray], freq_data: np.ndarray) -> rf.Network:
     s2p = np.empty(shape=(len(freq_data),2,2), dtype=np.complex128)
-    for sparam, data in traces_data.items():
+    for data in traces_data.values():
         if len(data) != len(freq_data):
             raise ValueError("Unable to create s2p matrix from traces_data. Lengths of trace_data and freq_data are different.")
     
@@ -99,7 +99,6 @@ class VNA:
         return self.inst.query("*IDN?")
 
     def get_traces_data_as_s2p(self) -> rf.Network:
-        s2p = rf.Network()
         data = {}
         freq = None
         for trace, sparam in TRACES_MAPPING.items():
@@ -108,25 +107,24 @@ class VNA:
             if freq is not None and (trace_freq != freq).any():
                 raise IOError(EXCEPTION_PREFIX + "Unable to readout traces data, frequency data differs between traces.")
             freq = trace_freq
-
         return convert_traces_data_to_s2p(data, freq)
 
-    def set_traces_as_s2p(self) -> None:
+    def set_traces_as_s2p(self)-> None:
         self.set_traces_count(len(TRACES_MAPPING))
         for trace, sparam in TRACES_MAPPING.items():
             self.set_trace_domain(trace, Domain.FREQ)
             self.set_trace_spar(trace, sparam)
     def get_traces_count(self) -> int:
         return int(self.inst.query(":TRACE:TOT?"))
-    def set_traces_count(self, traces_count: int) -> None:
+    def set_traces_count(self, traces_count: int)-> None:
         self.inst.write(f":TRACE:TOT {traces_count:d}")
     def get_trace_spar(self, trace_num: int) -> str:
         return self.inst.query(f":TRAC{trace_num}:SPAR?").lower()
-    def set_trace_spar(self, trace_num: int, sparam: str) -> None:
+    def set_trace_spar(self, trace_num: int, sparam: str)-> None:
         self.inst.write(f":TRAC{trace_num:d}:SPAR {sparam}")
     def get_trace_domain(self, trace_num: int) -> str:
         return self.inst.query(f":TRAC{trace_num:d}:DOM?")
-    def set_trace_domain(self, trace_num: int, domain: str) -> None:
+    def set_trace_domain(self, trace_num: int, domain: str)-> None:
         self.inst.write(f":TRAC{trace_num:d}:DOM {domain}")
     def get_trace_data(self, trace_num: int) -> np.ndarray:
         resp = convert_from_trace_data(self.inst.query(f":TRAC:DATA? {trace_num:d}"))
@@ -143,7 +141,33 @@ class VNA:
         f_stop = convert_from_NR3(self.inst.query(":FREQ:STOP?"))
         points_num = convert_from_NR1(self.inst.query(":SENS:SWE:POIN?"))
         return FrequencySettings(f_start, f_stop, points_num)
-    def set_freq_settings(self, f_start: float, f_stop: float, points_num: int) -> None:
+    def set_freq_settings(self, f_start: float, f_stop: float, points_num: int)-> None:
         self.inst.write(f":FREQ:STAR {round(f_start):d}")
         self.inst.write(f":FREQ:STOP {round(f_stop):d}")
         self.inst.write(f":SENS:SWE:POIN {points_num:d}")
+
+    def get_sweep_time(self) -> float:
+        resp = self.inst.query(":SENS:SWE:TIME:ACT?")
+        return convert_from_NR3(resp)
+    def get_is_sweep_completed(self) -> bool:
+        resp = self.inst.query(":SENS:SWE:STAT?")
+        return convert_from_NR1(resp) == 1
+    def get_is_sweep_continuous(self) -> bool:
+        """Return True when VNA continuously sweeping or False when sweeping is hold"""
+        resp = self.inst.query(":INIT:CONT?")
+        return convert_from_NR1(resp) == 1
+    def set_is_sweep_continuous(self, is_continuous: bool)-> None:
+        self.inst.write(f":INIT:CONT {int(is_continuous)}")
+    def start_sweep(self)-> None:
+        self.inst.write(":INIT:IMM")
+    def start_single_sweep_await(self)-> None:
+        sweep_time = self.get_sweep_time()
+        self.start_sweep()
+        time.sleep(sweep_time)
+        for i in range(0,5):
+            if self.get_is_sweep_completed():
+                return
+            time.sleep(sweep_time/5)
+        if not self.get_is_sweep_completed():
+            raise IOError(EXCEPTION_PREFIX + "Sweep isn't complete in expected amount of time.")
+
