@@ -109,22 +109,22 @@ class VNA:
             freq = trace_freq
         return convert_traces_data_to_s2p(data, freq)
 
-    def set_traces_as_s2p(self)-> None:
+    def set_traces_as_s2p(self) -> None:
         self.set_traces_count(len(TRACES_MAPPING))
         for trace, sparam in TRACES_MAPPING.items():
             self.set_trace_domain(trace, Domain.FREQ)
             self.set_trace_spar(trace, sparam)
     def get_traces_count(self) -> int:
         return int(self.inst.query(":TRACE:TOT?"))
-    def set_traces_count(self, traces_count: int)-> None:
+    def set_traces_count(self, traces_count: int) -> None:
         self.inst.write(f":TRACE:TOT {traces_count:d}")
     def get_trace_spar(self, trace_num: int) -> str:
         return self.inst.query(f":TRAC{trace_num}:SPAR?").lower()
-    def set_trace_spar(self, trace_num: int, sparam: str)-> None:
+    def set_trace_spar(self, trace_num: int, sparam: str) -> None:
         self.inst.write(f":TRAC{trace_num:d}:SPAR {sparam}")
     def get_trace_domain(self, trace_num: int) -> str:
         return self.inst.query(f":TRAC{trace_num:d}:DOM?")
-    def set_trace_domain(self, trace_num: int, domain: str)-> None:
+    def set_trace_domain(self, trace_num: int, domain: str) -> None:
         self.inst.write(f":TRAC{trace_num:d}:DOM {domain}")
     def get_trace_data(self, trace_num: int) -> np.ndarray:
         resp = convert_from_trace_data(self.inst.query(f":TRAC:DATA? {trace_num:d}"))
@@ -141,7 +141,7 @@ class VNA:
         f_stop = convert_from_NR3(self.inst.query(":FREQ:STOP?"))
         points_num = convert_from_NR1(self.inst.query(":SENS:SWE:POIN?"))
         return FrequencySettings(f_start, f_stop, points_num)
-    def set_freq_settings(self, f_start: float, f_stop: float, points_num: int)-> None:
+    def set_freq_settings(self, f_start: float, f_stop: float, points_num: int) -> None:
         self.inst.write(f":FREQ:STAR {round(f_start):d}")
         self.inst.write(f":FREQ:STOP {round(f_stop):d}")
         self.inst.write(f":SENS:SWE:POIN {points_num:d}")
@@ -156,11 +156,11 @@ class VNA:
         """Return True when VNA continuously sweeping or False when sweeping is hold"""
         resp = self.inst.query(":INIT:CONT?")
         return convert_from_NR1(resp) == 1
-    def set_is_sweep_continuous(self, is_continuous: bool)-> None:
+    def set_is_sweep_continuous(self, is_continuous: bool) -> None:
         self.inst.write(f":INIT:CONT {int(is_continuous)}")
-    def start_sweep(self)-> None:
+    def start_sweep(self) -> None:
         self.inst.write(":INIT:IMM")
-    def start_single_sweep_await(self)-> None:
+    def start_single_sweep_await(self) -> None:
         sweep_time = self.get_sweep_time()
         self.start_sweep()
         time.sleep(sweep_time)
