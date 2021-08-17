@@ -54,8 +54,18 @@ def test_convert_to_s2p():
         vna_api.SParam.S21: np.array([1+0j, 1+0j, 1+1j]),
         vna_api.SParam.S22: np.array([0+1j, 1+0j, 1+1j])
     }
-    freq = np.array([1, 2, 3])
+    freq = np.array([1E9, 2E9, 3E9])
     s2p = vna_api.convert_traces_data_to_s2p(data, freq)
+    s2p.plot_s_db()
+    plt.show()
+    assert True
+
+def test_read_s2p():
+    vna = get_vna()
+    vna.set_freq_settings(3E6, 10E9, 101)
+    vna.set_traces_as_s2p()
+    # TODO: Add waitimg for aqusition
+    s2p = vna.get_traces_data_as_s2p()
     s2p.plot_s_db()
     plt.show()
     assert True
