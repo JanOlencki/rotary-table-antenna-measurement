@@ -6,5 +6,6 @@
 - scikit-rf *v0.19*
 - click *v8.0*
 - crc8 *v0.1*
+- pyserial *v3.5*
 ## Build dependencies
 - pytest *v6.2*
