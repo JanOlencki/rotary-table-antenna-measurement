@@ -14,6 +14,15 @@
             "cwd": "${workspaceFolder}/"
         },
         {
+            "name": "Python: antenna_meas.meas",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/antenna_meas_cli/cli.py",
+            "console": "integratedTerminal",
+            "args": ["meas", "--rt-port=COM6"],
+            "cwd": "${workspaceFolder}/"
+        },
+        {
             "name": "Python: antenna_meas.help",
             "type": "python",
             "request": "launch",

@@ -2,10 +2,12 @@ from typing import Dict
 import serial
 import serial.tools.list_ports as ser_list
 from serial.tools.list_ports_common import ListPortInfo
-from rotary_table_messages import *
+from rotary_table_api.rotary_table_messages import *
 
 COM_PORT_VID = 0x0483
 COM_PORT_PID = 0x5740
+BROADCAST_ADDRESS = 0xF
+CONTROLLER_ADDRESS = 0xE
 
 def list_com_ports() -> Dict[str, ListPortInfo]:
     ports = ser_list.comports()
@@ -30,5 +32,8 @@ class RotaryTable:
     
     def send_request(self, request: Request) -> Response:
         self.inst.write(request.to_bytes())
+        # request_data = self.inst.read(6)
+        # print(''.join(' 0x{:02x}'.format(x) for x in request_data))
         resp_data = self.inst.read(REPONSE_LENGTH)
+        print(''.join(' 0x{:02x}'.format(x) for x in resp_data))
         return parse_response(resp_data)

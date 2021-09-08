@@ -1,5 +1,6 @@
 import pyvisa
 import click
+from rotary_table_api.rotary_table_messages import RequestGetConverterStatus, RequestGetStatus, ResponseConverterStatus
 from vna_anritsu_MS20xxC_api import vna_api
 from rotary_table_api import rotary_table_api as rt_api
 
@@ -24,10 +25,22 @@ def list_devices():
         else:
             click.echo(port_name)
 
+@click.command()
+@click.option("--rt-port", required=True, help="Rotary table controller COM port")
+def meas(rt_port):
+    rt = rt_api.RotaryTable(rt_port)
+    resp = rt.send_request(RequestGetConverterStatus(rt_api.CONTROLLER_ADDRESS))
+    if not resp.is_valid or not isinstance(resp, ResponseConverterStatus):
+        raise IOError("Unexpected or incorrect response")
+    click.echo("Controller voltage = ", nl=False)
+    volt_fg = "green" if resp.is_voltage_OK else "red"
+    click.secho(f"{resp.voltage:2.2f} V", fg=volt_fg)
+
 @click.group(name="antenna-meas")
 def cli():
     pass
 cli.add_command(list_devices)
+cli.add_command(meas)
 if __name__ == "__main__":
     cli()
     
