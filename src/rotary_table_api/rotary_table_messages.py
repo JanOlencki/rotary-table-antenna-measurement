@@ -11,6 +11,7 @@ def round_to(val: float, precision: float):
     return val
 
 ADDRESS_LENGTH = 4
+PREAMBLE = b"\x5D"
 class Request(ABC):
     def __init__(self, address: int):
         self.address = address
@@ -28,10 +29,10 @@ class Request(ABC):
     def get_command(self) -> int:
         raise NotImplementedError("Method get_command() must be overrided.")
     def get_body(self) -> bytes:
-        return bytes(0)
+        return bytes(3)
     def get_content(self) -> bytes:
         header = self.address << (8-ADDRESS_LENGTH) | self.get_command()
-        return header.to_bytes(1, byteorder="big") + self.get_body()
+        return PREAMBLE + header.to_bytes(1, byteorder="big") + self.get_body()
     def get_CRC(self) -> bytes:
         hash = crc8.crc8()
         hash.update(self.get_content())
@@ -107,39 +108,52 @@ class RequestRotate(Request):
     def get_body(self) -> bytes:
         return angle_to_bytes(self.angle) + rpm_to_bytes(self.rpm)
 
-REPONSE_LENGTH = 8
+REPONSE_LENGTH = 9
 class Response():
     def __init__(self, data: bytes):
-        self.__data = data
+        if len(data) != REPONSE_LENGTH:
+            raise ValueError(f"Response data must be {REPONSE_LENGTH} bits length.")
+        self.__preamble = data[0:1]
+        self.__payload = data[1:-1]
+        self.__crc = data[-1:]
 
     @property
-    def data(self) -> bytes:
-        return self.__data
+    def payload(self) -> bytes:
+        return self.__payload
+
+    @property
+    def preamble(self) -> bytes:
+        return self.__preamble
+
+    @property
+    def crc(self) -> bytes:
+        return self.__crc
     
     @property
     def address(self) -> int:
-        if len(self.data) < 1:
+        if len(self.payload) < 1:
             return None
-        return int(self.data[0]) >> ADDRESS_LENGTH
+        return self.payload[0] >> ADDRESS_LENGTH
     
     @property
     def response_header(self) -> int:
-        if len(self.data) < 1:
+        if len(self.payload) < 1:
             return None
-        return int(self.data[0]) & (2**ADDRESS_LENGTH-1)
+        return self.payload[0] & (2**ADDRESS_LENGTH-1)
     
     def calc_CRC(self) -> bytes:
         hash = crc8.crc8()
-        hash.update(self.data[:-1])
+        hash.update(self.preamble)
+        hash.update(self.payload)
         return hash.digest()
 
     @property
     def is_valid(self) -> bool:
-        return len(self.data) == REPONSE_LENGTH and self.calc_CRC() == self.data[-1:]       
+        return self.preamble == PREAMBLE and self.calc_CRC() == self.crc       
 
     def __eq__(self, other):
         if isinstance(other, Response):
-            return self.data == other.data
+            return self.payload == other.payload
         return False
 
 IS_VOLTAGE_OK_MASK = 0b1
@@ -151,7 +165,7 @@ VOLTAGE_FRACTION_LENGTH = 4
 class ResponseMotorStatus(Response):
     @property
     def status(self) -> int:
-        return self.data[1]
+        return self.payload[1]
     @property
     def is_motor_OK(self) -> bool:
         return (self.status & IS_MOTOR_OK_MASK) > 0      
@@ -167,18 +181,18 @@ class ResponseMotorStatus(Response):
 
     @property
     def current_angle(self) -> float:
-        return angle_from_bytes(self.data[2:4])
+        return angle_from_bytes(self.payload[2:4])
     @property
     def target_angle(self) -> float:
-        return angle_from_bytes(self.data[4:6])
+        return angle_from_bytes(self.payload[4:6])
     @property
     def rpm(self) -> float:
-        return rpm_from_bytes(self.data[6:7])
+        return rpm_from_bytes(self.payload[6:7])
     
 class ResponseConverterStatus(Response):
     @property
     def status(self) -> int:
-        return self.data[1]
+        return self.payload[1]
     
     @property
     def is_voltage_OK(self) -> bool:
@@ -186,11 +200,11 @@ class ResponseConverterStatus(Response):
     
     @property
     def voltage(self) -> float:
-        return self.data[2] * 2**-VOLTAGE_FRACTION_LENGTH
+        return self.payload[2] * 2**-VOLTAGE_FRACTION_LENGTH
     
     @property
     def reserved_data(self) -> bytes:
-        return self.data[3:-1]
+        return self.payload[3:]
 
 def parse_response(data: bytes) -> Type[Response]:
     resp = Response(data)
