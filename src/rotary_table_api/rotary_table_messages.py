@@ -60,6 +60,10 @@ class RequestHalt(Request):
 class RequestDisable(Request):
     def get_command(self) -> int:
         return 3
+        
+class RequestGetConverterStatus(Request):
+    def get_command(self) -> int:
+        return 5
 
 RPM_PRECISION = 0.5
 SPEED_MAX = 2**7
