@@ -32,8 +32,5 @@ class RotaryTable:
     
     def send_request(self, request: Request) -> Response:
         self.inst.write(request.to_bytes())
-        # request_data = self.inst.read(6)
-        # print(''.join(' 0x{:02x}'.format(x) for x in request_data))
         resp_data = self.inst.read(REPONSE_LENGTH)
-        print(''.join(' 0x{:02x}'.format(x) for x in resp_data))
         return parse_response(resp_data)
