@@ -65,9 +65,9 @@ class RequestGetConverterStatus(Request):
     def get_command(self) -> int:
         return 5
 
-RPM_PRECISION = 0.5
+RPM_PRECISION = 0.25
 SPEED_MAX = 2**7
-RPM_MAX = SPEED_MAX/RPM_PRECISION
+RPM_MAX = SPEED_MAX*RPM_PRECISION
 ANGLE_FRACTION_LENGTH = 7
 ANGLE_PRECISION = 2**-3
 def rpm_to_bytes(rpm: float) -> bytes:
