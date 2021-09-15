@@ -5,6 +5,8 @@ import sys
 from vna_anritsu_MS20xxC_api import vna_api
 from rotary_table_api import rotary_table_api as rt_api
 from rotary_table_api import rotary_table_messages as rt_msg
+import skrf as rf
+import numpy as np
 
 @click.command()
 def list_devices():
@@ -30,9 +32,12 @@ def list_devices():
 @click.command()
 @click.option("--rt-port", required=True, help="Rotary table controller COM port")
 @click.option("--rt-id", required=True, type=int, help="Rotary table ID")
+@click.option("--vna-name", required=True, help="VNA VISA resource name")
 @click.option("--angle-step", default=5, show_default=True, type=float)
 def meas(rt_port, rt_id, vna_name, angle_step, f_show):
     rt = rt_api.RotaryTable(rt_port)
+    visa_rm = pyvisa.ResourceManager()
+    vna = vna_api.VNA(visa_rm, vna_name)
     resp = rt.send_request(rt_msg.RequestGetConverterStatus(rt_api.CONTROLLER_ADDRESS))
     if not resp.is_valid or not isinstance(resp, rt_msg.ResponseConverterStatus):
         raise IOError("Unexpected or incorrect response")
@@ -47,6 +52,9 @@ def meas(rt_port, rt_id, vna_name, angle_step, f_show):
     click.pause()
     rt.send_request(rt_msg.RequestHalt(rt_id))
     rt.send_request(rt_msg.RequestSetHome(rt_id))
+    # vna.set_freq_settings(3E6, 10E9, 101)
+    # vna.set_traces_as_s2p()
+    # vna.set_is_sweep_continuous(False)
 
     angle_points = np.arange(0, 360, angle_step)
     try:
@@ -57,11 +65,21 @@ def meas(rt_port, rt_id, vna_name, angle_step, f_show):
                 while(rt.send_request(rt_msg.RequestGetStatus(rt_id)).is_rotating):
                     time.sleep(0.2)
                 time.sleep(1)
+                s2p = vna_single_measure(vna, test_data=True)
     except KeyboardInterrupt as err:
         resp = rt.send_request(rt_msg.RequestHalt(rt_id))
         click.secho("Halting rotary table and exit")
         return
         pass
+def vna_single_measure(vna: vna_api.VNA, test_data=False) -> rf.Network:
+    if not test_data:
+        vna.start_single_sweep_await()
+        s2p = vna.get_traces_data_as_s2p()
+    else:
+        time.sleep(1)
+        freq = rf.Frequency(1, 10, 101, 'ghz')
+        s = np.random.rand(101, 2, 2) + 1j*np.random.rand(101, 2, 2)
+        return rf.Network(frequency=freq, s=s, name='random values 2-port')
 
 @click.group(name="antenna-meas")
 def cli():
