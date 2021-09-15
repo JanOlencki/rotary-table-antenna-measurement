@@ -6,6 +6,8 @@ from vna_anritsu_MS20xxC_api import vna_api
 from rotary_table_api import rotary_table_api as rt_api
 from rotary_table_api import rotary_table_messages as rt_msg
 import skrf as rf
+import matplotlib
+from matplotlib import pyplot as plt
 import numpy as np
 
 @click.command()
@@ -34,6 +36,7 @@ def list_devices():
 @click.option("--rt-id", required=True, type=int, help="Rotary table ID")
 @click.option("--vna-name", required=True, help="VNA VISA resource name")
 @click.option("--angle-step", default=5, show_default=True, type=float)
+@click.option("--f-show", multiple=True, type=float, help="Show live plot for given frequencies, GUI may be blocked and works unstable")
 def meas(rt_port, rt_id, vna_name, angle_step, f_show):
     rt = rt_api.RotaryTable(rt_port)
     visa_rm = pyvisa.ResourceManager()
@@ -56,6 +59,21 @@ def meas(rt_port, rt_id, vna_name, angle_step, f_show):
     # vna.set_traces_as_s2p()
     # vna.set_is_sweep_continuous(False)
 
+    matplotlib.rcParams['toolbar'] = 'None' 
+    fig, ax = plt.subplots()
+    plots = []
+    plots_data = []
+    if len(f_show) > 0:
+        ax.set_ylim(-80, 0)
+        ax.set_xlim(0, 360)        
+        for f in f_show:
+            line = ax.plot([],[])[0]
+            line.set_label(f"f={f:e}")
+            plots.append(line)
+            plots_data.append([])
+        ax.legend()
+        fig.canvas.draw()
+        plt.show(block=False)
     angle_points = np.arange(0, 360, angle_step)
     try:
         with click.progressbar(angle_points, label="Making measurements",
@@ -66,11 +84,23 @@ def meas(rt_port, rt_id, vna_name, angle_step, f_show):
                     time.sleep(0.2)
                 time.sleep(1)
                 s2p = vna_single_measure(vna, test_data=True)
+                if len(f_show) > 0:
+                    for i in range(len(f_show)):
+                        s21db = 20*np.log10(np.abs(s2p.s[np.abs(s2p.f - f_show[i]).argmin()][1,0]))                        
+                        plots_data[i].append(s21db)
+                        plots[i].set_data(angle_points[0:len(plots_data[i])], plots_data[i])
+                    fig.canvas.draw()
+                    fig.canvas.flush_events()
     except KeyboardInterrupt as err:
         resp = rt.send_request(rt_msg.RequestHalt(rt_id))
         click.secho("Halting rotary table and exit")
         return
         pass
+    if len(f_show) > 0:
+        plt.draw()
+        click.pause()
+    
+
 def vna_single_measure(vna: vna_api.VNA, test_data=False) -> rf.Network:
     if not test_data:
         vna.start_single_sweep_await()
