@@ -19,7 +19,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/antenna_meas_cli/cli.py",
             "console": "integratedTerminal",
-            "args": ["meas", "--rt-port=COM6", "--rt-id=0", "--vna-name=ASRL1::INSTR", "--f-show=2.4E9", "--f-show=5.4E9"],
+            "args": ["meas", "--rt-port=COM6", "--rt-id=0", "--vna-name=ASRL1::INSTR", "--s2p-filename=test_s2p", "--s2p-dir=tmp", "--f-show=2.4E9", "--f-show=5.4E9"],
             "cwd": "${workspaceFolder}/"
         },
         {
