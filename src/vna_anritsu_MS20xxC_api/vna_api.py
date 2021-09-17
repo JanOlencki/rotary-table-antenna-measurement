@@ -147,11 +147,11 @@ class VNA:
         self.inst.write(f":SENS:SWE:POIN {points_num:d}")
 
     def get_sweep_time(self) -> float:
-        resp = self.inst.query(":SENS:SWE:TIME:ACT?")
-        return convert_from_NR3(resp)
+        # TODO: Get sweep time based on IFBW and SWEEP NUMBER
+        return 20
     def get_is_sweep_completed(self) -> bool:
-        resp = self.inst.query(":SENS:SWE:STAT?")
-        return convert_from_NR1(resp) == 1
+        resp = self.inst.query(":STATus:OPERation?")
+        return convert_from_NR1(resp) & 0b1<<8 > 0
     def get_is_sweep_continuous(self) -> bool:
         """Return True when VNA continuously sweeping or False when sweeping is hold"""
         resp = self.inst.query(":INIT:CONT?")
@@ -161,13 +161,13 @@ class VNA:
     def start_sweep(self) -> None:
         self.inst.write(":INIT:IMM")
     def start_single_sweep_await(self) -> None:
-        sweep_time = self.get_sweep_time()
+        sweep_time = 0.5
         self.start_sweep()
         time.sleep(sweep_time)
-        for i in range(0,5):
+        for i in range(0,10):
             if self.get_is_sweep_completed():
                 return
-            time.sleep(sweep_time/5)
+            time.sleep(sweep_time)
         if not self.get_is_sweep_completed():
             raise IOError(EXCEPTION_PREFIX + "Sweep isn't complete in expected amount of time.")
 
