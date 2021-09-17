@@ -24,7 +24,7 @@ def is_com_port_valid(port_info: ListPortInfo) -> bool:
 
 class RotaryTable:
     def __init__(self, port_name: str):
-        self.inst = serial.Serial(port_name)
+        self.inst = serial.Serial(port_name, timeout=1)
     
     def __del___(self):
         if self.inst is not None:
@@ -33,4 +33,8 @@ class RotaryTable:
     def send_request(self, request: Request) -> Response:
         self.inst.write(request.to_bytes())
         resp_data = self.inst.read(REPONSE_LENGTH)
+        if request.address == BROADCAST_ADDRESS:
+            return
+        if len(resp_data) == 0:
+            raise IOError(f"There is no reponse from rotary table with address {request.address:d}!")
         return parse_response(resp_data)
