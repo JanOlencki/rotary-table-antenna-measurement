@@ -44,7 +44,7 @@ def filename_from_angle_n_s2pname(filename: str, angle: float, angle_step:float 
 @click.option("--vna-name", required=True, help="VNA VISA resource name")
 @click.option("--s2p-name", required=True, type=click.Path(exists=False), help="S2P output filename, extension and angle suffix will be automatically added")
 @click.option("--s2p-dir", required=False, type=click.Path(exists=False), help="S2P output directory")
-@click.option("--speed", default=10, show_default=True, type=float, help="Rotational speed in RPM")
+@click.option("--speed", default=5, show_default=True, type=float, help="Rotational speed in RPM")
 @click.option("--angle-step", default=5, show_default=True, type=float, help="Rotary table will be rotated by angle step between measures. Rotary table rotates 360deg, but don't made measurement after returning home position.")
 @click.option("--f-show", multiple=True, type=float, help="Show live plot for given frequencies, GUI may be blocked and works unstable")
 def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show):
@@ -62,18 +62,20 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
     rt.send_request(rt_msg.RequestDisable(rt_id))
     click.secho("Rotate to home position by hands and click any key.")
     click.pause()
-    rt.send_request(rt_msg.RequestHalt(rt_id))
+    rt.send_request(rt_msg.RequestHalt(1))
+    time.sleep(0.5)
+    rt.send_request(rt_msg.RequestHalt(0))
+    time.sleep(0.5)
     rt.send_request(rt_msg.RequestSetHome(rt_id))
-    # vna.set_freq_settings(3E6, 10E9, 101)
-    # vna.set_traces_as_s2p()
-    # vna.set_is_sweep_continuous(False)
+    vna.set_traces_as_s2p()
+    vna.set_is_sweep_continuous(False)
 
     matplotlib.rcParams['toolbar'] = 'None' 
     fig, ax = plt.subplots()
     plots = []
     plots_data = []
     if len(f_show) > 0:
-        ax.set_ylim(-80, 0)
+        ax.set_ylim(-100, 0)
         ax.set_xlim(0, 360)        
         for f in f_show:
             line = ax.plot([],[])[0]
@@ -92,7 +94,7 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
                 while(rt.send_request(rt_msg.RequestGetStatus(rt_id)).is_rotating):
                     time.sleep(0.2)
                 time.sleep(0.5)
-                s2p = vna_single_measure(vna, test_data=True)
+                s2p = vna_single_measure(vna, test_data=False)
                 s2p.comments = f"angle={angle:f}deg"
                 filename = filename_from_angle_n_s2pname(s2p_name, angle, angle_step)                
                 s2p.write_touchstone(filename, s2p_dir, skrf_comment=False)
@@ -118,10 +120,27 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
         plt.draw()
         click.pause()
 
+@click.command()
+@click.option("--vna-name", required=True, help="VNA VISA resource name")
+def vna_meas(vna_name):
+    visa_rm = pyvisa.ResourceManager()
+    vna = vna_api.VNA(visa_rm, vna_name)
+    vna.set_traces_as_s2p()
+    start = time.time()
+    vna.set_is_sweep_continuous(False)
+    vna.start_single_sweep_await()    
+    sweep_dur = time.time() - start
+    start = time.time()
+    s2p = vna.get_traces_data_as_s2p()
+    trans_dur = time.time() - start
+    click.echo(f"sweep={sweep_dur:.2f}s, transmittion={trans_dur:.2f}s")
+    s2p.plot_s_db()
+    plt.show()
+
 def vna_single_measure(vna: vna_api.VNA, test_data=False) -> rf.Network:
     if not test_data:
         vna.start_single_sweep_await()
-        s2p = vna.get_traces_data_as_s2p()
+        return vna.get_traces_data_as_s2p()
     else:
         # time.sleep(1)
         freq = rf.Frequency(1, 10, 101, 'ghz')
@@ -133,6 +152,7 @@ def cli():
     pass
 cli.add_command(list_devices)
 cli.add_command(meas)
+cli.add_command(vna_meas)
 if __name__ == "__main__":
     cli()
     

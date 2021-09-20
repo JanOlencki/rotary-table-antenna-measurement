@@ -98,21 +98,25 @@ class VNA:
     def get_identification(self) -> str:
         return self.inst.query("*IDN?")
 
-    def get_traces_data_as_s2p(self) -> rf.Network:
+    def get_traces_data_as_s2p(self, check_traces_freq = False) -> rf.Network:
         data = {}
         freq = None
+        default_timeout = self.inst.timeout
+        self.inst.timeout = 10000
         for trace, sparam in TRACES_MAPPING.items():
             data[sparam] = self.get_trace_data(trace)
-            trace_freq = self.get_trace_freq_data(trace)
-            if freq is not None and (trace_freq != freq).any():
-                raise IOError(EXCEPTION_PREFIX + "Unable to readout traces data, frequency data differs between traces.")
-            freq = trace_freq
+            if freq is None or check_traces_freq:
+                trace_freq = self.get_trace_freq_data(trace)
+                if freq is not None and (trace_freq != freq).any():
+                    raise IOError(EXCEPTION_PREFIX + "Unable to readout traces data, frequency data differs between traces.")
+                freq = trace_freq
+        self.inst.timeout = default_timeout
         return convert_traces_data_to_s2p(data, freq)
 
     def set_traces_as_s2p(self) -> None:
         self.set_traces_count(len(TRACES_MAPPING))
         for trace, sparam in TRACES_MAPPING.items():
-            self.set_trace_domain(trace, Domain.FREQ)
+            #self.set_trace_domain(trace, Domain.FREQ)
             self.set_trace_spar(trace, sparam)
     def get_traces_count(self) -> int:
         return int(self.inst.query(":TRACE:TOT?"))
@@ -161,13 +165,13 @@ class VNA:
     def start_sweep(self) -> None:
         self.inst.write(":INIT:IMM")
     def start_single_sweep_await(self) -> None:
-        sweep_time = 0.5
+        wait_time = 0.5
         self.start_sweep()
-        time.sleep(sweep_time)
-        for i in range(0,10):
+        time.sleep(wait_time)
+        for i in range(0,100):
             if self.get_is_sweep_completed():
                 return
-            time.sleep(sweep_time)
+            time.sleep(wait_time)
         if not self.get_is_sweep_completed():
             raise IOError(EXCEPTION_PREFIX + "Sweep isn't complete in expected amount of time.")
 
