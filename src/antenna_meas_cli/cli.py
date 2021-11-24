@@ -128,17 +128,13 @@ def vna_meas(vna_name):
     visa_rm = pyvisa.ResourceManager()
     vna = vna_api.VNA(visa_rm, vna_name)
     vna.set_traces_as_s2p()
-    start = time.time()
     vna.set_is_sweep_continuous(False)
     vna.start_single_sweep_await()    
-    sweep_dur = time.time() - start
-    start = time.time()
     s2p = vna.get_traces_data_as_s2p()
-    trans_dur = time.time() - start
-    click.echo(f"sweep={sweep_dur:.2f}s, transmittion={trans_dur:.2f}s")
     s2p.plot_s_db()
     plt.show()
     click.pause()
+    vna.set_is_sweep_continuous(True)
 
 def vna_single_measure(vna: vna_api.VNA, test_data=False) -> rf.Network:
     if not test_data:
