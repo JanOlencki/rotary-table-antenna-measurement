@@ -15,3 +15,9 @@ class Domain:
     DISTANCE: Final = "DIST"
     FREQ_GATE: Final = "FGT"
 
+class DataFormat:
+    ASCII: Final = "ASC"
+    INT: Final = "INT,32"
+    REAL32: Final = "REAL,32"
+    REAL64: Final = "REAL,64"
+
