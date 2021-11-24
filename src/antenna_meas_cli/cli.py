@@ -43,25 +43,29 @@ def filename_from_angle_n_s2pname(filename: str, angle: float, angle_step:float 
 @click.option("--vna-name", required=True, help="VNA VISA resource name")
 @click.option("--s2p-name", required=True, type=click.Path(exists=False), help="S2P output filename, extension and angle suffix will be automatically added")
 @click.option("--s2p-dir", required=False, type=click.Path(exists=False), help="S2P output directory")
-@click.option("--speed", default=10, show_default=True, type=float, help="Rotational speed in RPM")
+@click.option("--speed", default=5, show_default=True, type=float, help="Rotational speed in RPM")
 @click.option("--angle-step", default=5, show_default=True, type=float, help="Rotary table will be rotated by angle step between measures. Rotary table rotates 360deg, but don't made measurement after returning home position.")
 @click.option("--f-show", multiple=True, type=float, help="Show live plot for given frequencies, GUI may be blocked and works unstable")
-def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show):
-    rt = rt_api.RotaryTable(rt_port)
+@click.option("--rs-converter", is_flag=True)
+def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show, rs_converter):
+    rt = rt_api.RotaryTable(rt_port, rs_converter)
     visa_rm = pyvisa.ResourceManager()
     vna = vna_api.VNA(visa_rm, vna_name)
 
-    resp = rt.send_request(rt_msg.RequestGetConverterStatus(rt_api.CONTROLLER_ADDRESS))      
-    click.echo("Controller voltage = ", nl=False)
-    volt_fg = "green" if resp.is_voltage_OK else "red"
-    click.secho(f"{resp.voltage:2.2f} V", fg=volt_fg)
-    if not resp.is_voltage_OK:
-        click.secho("Inncorrect supply voltage! Connect USB power source that support USB Quick Charge 2.0 with 12V output voltage.", fg="red")
-        return
+    if not rs_converter:
+        resp = rt.send_request(rt_msg.RequestGetConverterStatus(rt_api.CONTROLLER_ADDRESS))      
+        click.echo("Controller voltage = ", nl=False)
+        volt_fg = "green" if resp.is_voltage_OK else "red"
+        click.secho(f"{resp.voltage:2.2f} V", fg=volt_fg)
+        if not resp.is_voltage_OK:
+            click.secho("Inncorrect supply voltage! Connect USB power source that support USB Quick Charge 2.0 with 12V output voltage.", fg="red")
+            return
     rt.send_request(rt_msg.RequestDisable(rt_id))
-    click.secho("Rotate to home position by hands and click any key.")
+    click.pause("Rotate antenna to home position by hands and press any key to continue...")
     click.pause()
     rt.send_request(rt_msg.RequestHalt(rt_id))
+    
+    time.sleep(0.1)
     rt.send_request(rt_msg.RequestSetHome(rt_id))
     vna.set_traces_as_s2p()
     vna.set_is_sweep_continuous(False)
@@ -71,10 +75,10 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
     plots = []
     plots_data = []
     if len(f_show) > 0:
-        ax.set_ylim(-80, 0)
-        ax.set_xlim(0, 360)    
-        ax.set_ylabel("S_21 (dB)")    
-        ax.set_xlabel("Angle (degrees)")    
+        ax.set_ylim(-100, 0)
+        ax.set_xlim(0, 360)        
+        ax.set_ylabel("S_21 (dB)")
+        ax.set_xlabel("Angle (degrees)")
         for f in f_show:
             line = ax.plot([],[])[0]
             line.set_label(f"f={f:e}")
@@ -118,10 +122,28 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
         plt.draw()
         click.pause()
 
+@click.command()
+@click.option("--vna-name", required=True, help="VNA VISA resource name")
+def vna_meas(vna_name):
+    visa_rm = pyvisa.ResourceManager()
+    vna = vna_api.VNA(visa_rm, vna_name)
+    vna.set_traces_as_s2p()
+    start = time.time()
+    vna.set_is_sweep_continuous(False)
+    vna.start_single_sweep_await()    
+    sweep_dur = time.time() - start
+    start = time.time()
+    s2p = vna.get_traces_data_as_s2p()
+    trans_dur = time.time() - start
+    click.echo(f"sweep={sweep_dur:.2f}s, transmittion={trans_dur:.2f}s")
+    s2p.plot_s_db()
+    plt.show()
+    click.pause()
+
 def vna_single_measure(vna: vna_api.VNA, test_data=False) -> rf.Network:
     if not test_data:
         vna.start_single_sweep_await()
-        s2p = vna.get_traces_data_as_s2p()
+        return vna.get_traces_data_as_s2p()
     else:
         time.sleep(1)
         freq = rf.Frequency(1, 10, 101, 'ghz')
@@ -133,6 +155,7 @@ def cli():
     pass
 cli.add_command(list_devices)
 cli.add_command(meas)
+cli.add_command(vna_meas)
 if __name__ == "__main__":
     cli()
     

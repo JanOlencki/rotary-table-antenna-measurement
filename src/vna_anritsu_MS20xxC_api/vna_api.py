@@ -52,22 +52,32 @@ def convert_traces_data_to_s2p(traces_data: Dict[str, np.ndarray], freq_data: np
     s2p[:, 0, 1] = traces_data[SParam.S12]
     s2p[:, 1, 0] = traces_data[SParam.S21]
     s2p[:, 1, 1] = traces_data[SParam.S22]
-    return rf.Network(f=freq_data, s=s2p, f_unit="Hz")
+    return rf.Network(f=freq_data/1E9, s=s2p, f_unit="GHz")
 def convert_from_NR1(val: str) -> int:
     return int(val)
 def convert_from_NR3(val: str) -> float:
     return float(val)
-def convert_from_trace_data(val: str) -> List[str]:
+def convert_from_trace_data(val: str, format: str) -> List[str]:
     if len(val) < 2:
          return None
     len_dig_count = int(val[1])+2
     if len(val) <= len_dig_count:
          return None
-    splited = val[len_dig_count:].split(",")
-    if len(splited[-1]) == 0:
-        return splited[:-1]
+    if format == DataFormat.ASCII:
+        splited = val[len_dig_count:].split(",")
+        if len(splited[-1]) == 0:
+            return splited[:-1]
+        else:
+            return splited
+    elif format == DataFormat.REAL32 or format == DataFormat.REAL64:
+        num_size = 4
+        if format == DataFormat.REAL64:
+            num_size = 8
+        data = []
+        for i in range(len_dig_count, len(val), num_size):
+            tmp = val[i:num_size]
     else:
-        return splited
+        raise NotImplementedError(f"Converting from {format} format is not implemented!")
 def convert_data_to_complex(data: List):
     real = np.asarray(data, dtype=float)
     if len(real) < 1:
@@ -88,6 +98,7 @@ def convert_header_to_dict(data: List[str]) -> Dict[str, str]:
     return header
 
 class VNA: 
+    data_format = DataFormat.REAL32
     def __init__(self, resource_manager: pyvisa.ResourceManager, instrument_id: str):
         self.inst = resource_manager.open_resource(instrument_id)
     
@@ -98,26 +109,34 @@ class VNA:
     def get_identification(self) -> str:
         return self.inst.query("*IDN?")
 
-    def get_traces_data_as_s2p(self) -> rf.Network:
+    def get_traces_data_as_s2p(self, check_traces_freq = False) -> rf.Network:
         data = {}
         freq = None
+        default_timeout = self.inst.timeout
+        self.inst.timeout = 10000
         for trace, sparam in TRACES_MAPPING.items():
             data[sparam] = self.get_trace_data(trace)
-            trace_freq = self.get_trace_freq_data(trace)
-            if freq is not None and (trace_freq != freq).any():
-                raise IOError(EXCEPTION_PREFIX + "Unable to readout traces data, frequency data differs between traces.")
-            freq = trace_freq
+            if freq is None or check_traces_freq:
+                trace_freq = self.get_trace_freq_data(trace)
+                if freq is not None and (trace_freq != freq).any():
+                    raise IOError(EXCEPTION_PREFIX + "Unable to readout traces data, frequency data differs between traces.")
+                freq = trace_freq
+        self.inst.timeout = default_timeout
         return convert_traces_data_to_s2p(data, freq)
 
     def set_traces_as_s2p(self) -> None:
-        self.set_traces_count(len(TRACES_MAPPING))
+        self.set_data_format(self.data_format)
         for trace, sparam in TRACES_MAPPING.items():
-            self.set_trace_domain(trace, Domain.FREQ)
+            #self.set_trace_domain(trace, Domain.FREQ)
             self.set_trace_spar(trace, sparam)
     def get_traces_count(self) -> int:
         return int(self.inst.query(":TRACE:TOT?"))
     def set_traces_count(self, traces_count: int) -> None:
         self.inst.write(f":TRACE:TOT {traces_count:d}")
+    def get_data_format(self) -> str:
+        return self.inst.query(":FORM:READ:DATA?")
+    def set_data_format(self, data_format: str) -> None:
+        self.inst.write(f":FORM:READ:DATA {data_format}")
     def get_trace_spar(self, trace_num: int) -> str:
         return self.inst.query(f":TRAC{trace_num}:SPAR?").lower()
     def set_trace_spar(self, trace_num: int, sparam: str) -> None:
@@ -127,13 +146,22 @@ class VNA:
     def set_trace_domain(self, trace_num: int, domain: str) -> None:
         self.inst.write(f":TRAC{trace_num:d}:DOM {domain}")
     def get_trace_data(self, trace_num: int) -> np.ndarray:
-        resp = convert_from_trace_data(self.inst.query(f":TRAC:DATA? {trace_num:d}"))
+        datatype = None
+        if self.data_format == DataFormat.REAL64:
+            datatype = "d"
+        elif self.data_format == DataFormat.REAL32:
+            datatype = "f"
+        resp = self.inst.query_binary_values(f":TRAC:DATA? {trace_num:d}", datatype=datatype)
         return convert_data_to_complex(resp)
     def get_trace_freq_data(self, trace_num: int) -> np.ndarray:
-        resp = convert_from_trace_data(self.inst.query(f":SENS{trace_num}:FREQ:DATA?"))
+        if self.data_format == DataFormat.REAL64:
+            datatype = "d"
+        elif self.data_format == DataFormat.REAL32:
+            datatype = "f"
+        resp = self.inst.query_binary_values(f":SENS{trace_num:d}:FREQ:DATA?", datatype=datatype)
         return np.asarray(resp, dtype=float)
     def get_trace_header(self, trace_num: int) -> Dict[str, str]:
-        resp = convert_from_trace_data(self.inst.query(f":TRAC:PRE? {trace_num:d}"))
+        resp = convert_from_trace_data(self.inst.query(f":TRAC:PRE? {trace_num:d}"), DataFormat.ASCII)
         return convert_header_to_dict(resp)
 
     def get_freq_settings(self) -> FrequencySettings:
@@ -161,13 +189,13 @@ class VNA:
     def start_sweep(self) -> None:
         self.inst.write(":INIT:IMM")
     def start_single_sweep_await(self) -> None:
-        sweep_time = 0.5
+        wait_time = 0.5
         self.start_sweep()
-        time.sleep(sweep_time)
-        for i in range(0,10):
+        time.sleep(wait_time)
+        for i in range(0,100):
             if self.get_is_sweep_completed():
                 return
-            time.sleep(sweep_time)
+            time.sleep(wait_time)
         if not self.get_is_sweep_completed():
             raise IOError(EXCEPTION_PREFIX + "Sweep isn't complete in expected amount of time.")
 
