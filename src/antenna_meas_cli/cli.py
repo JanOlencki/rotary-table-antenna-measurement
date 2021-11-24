@@ -47,18 +47,20 @@ def filename_from_angle_n_s2pname(filename: str, angle: float, angle_step:float 
 @click.option("--speed", default=5, show_default=True, type=float, help="Rotational speed in RPM")
 @click.option("--angle-step", default=5, show_default=True, type=float, help="Rotary table will be rotated by angle step between measures. Rotary table rotates 360deg, but don't made measurement after returning home position.")
 @click.option("--f-show", multiple=True, type=float, help="Show live plot for given frequencies, GUI may be blocked and works unstable")
-def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show):
-    rt = rt_api.RotaryTable(rt_port)
+@click.option("--rs-converter", is_flag=True)
+def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show, rs_converter):
+    rt = rt_api.RotaryTable(rt_port, rs_converter)
     visa_rm = pyvisa.ResourceManager()
     vna = vna_api.VNA(visa_rm, vna_name)
 
+    if not rs_converter:
     resp = rt.send_request(rt_msg.RequestGetConverterStatus(rt_api.CONTROLLER_ADDRESS))      
     click.echo("Controller voltage = ", nl=False)
     volt_fg = "green" if resp.is_voltage_OK else "red"
     click.secho(f"{resp.voltage:2.2f} V", fg=volt_fg)
     if not resp.is_voltage_OK:
         click.secho("Inncorrect supply voltage! Connect USB power source that support USB Quick Charge 2.0 with 12V output voltage.", fg="red")
-        # return
+            return
     rt.send_request(rt_msg.RequestDisable(rt_id))
     click.secho("Rotate to home position by hands and click any key.")
     click.pause()

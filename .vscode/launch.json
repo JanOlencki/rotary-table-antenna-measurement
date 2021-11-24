@@ -19,7 +19,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/antenna_meas_cli/cli.py",
             "console": "integratedTerminal",
-            "args": ["meas", "--rt-port=COM3", "--rt-id=0", "--vna-name=USB0::0x0B5B::0xFFF9::1937045_1736_30::INSTR", "--s2p-name=viv_viv_azim_f", "--s2p-dir=meas", "--f-show=2.4E9", "--f-show=5.4E9"],
+            "args": ["meas", "--rt-port=COM3", "--rt-id=0", "--rs-converter", "--vna-name=USB0::0x0B5B::0xFFF9::1937045_1736_30::INSTR", "--s2p-name=viv_viv_azim_f", "--s2p-dir=meas", "--f-show=2.4E9", "--f-show=5.4E9"],
             "cwd": "${workspaceFolder}/"
         },
         {

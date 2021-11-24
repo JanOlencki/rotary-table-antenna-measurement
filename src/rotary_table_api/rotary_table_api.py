@@ -1,5 +1,6 @@
 from typing import Dict
 import serial
+from serial.serialutil import PARITY_NONE
 import serial.tools.list_ports as ser_list
 from serial.tools.list_ports_common import ListPortInfo
 from rotary_table_api.rotary_table_messages import *
@@ -23,16 +24,21 @@ def is_com_port_valid(port_info: ListPortInfo) -> bool:
     return False
 
 class RotaryTable:
-    def __init__(self, port_name: str):
-        self.inst = serial.Serial(port_name, timeout=1)
+    def __init__(self, port_name: str, rs_converter: bool = False):
+        if rs_converter:
+            self.inst = serial.Serial(port_name, baudrate=38400, parity=PARITY_NONE, timeout=1)
+        else:
+            self.inst = serial.Serial(port_name, timeout=1)
     
     def __del___(self):
         if self.inst is not None:
             self.inst.close()
     
     def send_request(self, request: Request) -> Response:
+        self.inst.reset_input_buffer()
         self.inst.write(request.to_bytes())
         resp_data = self.inst.read(REPONSE_LENGTH)
+        self.inst.rts = True
         if request.address == BROADCAST_ADDRESS:
             return
         if len(resp_data) == 0:
