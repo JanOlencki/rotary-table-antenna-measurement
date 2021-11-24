@@ -1,7 +1,6 @@
 import pyvisa
 import click
 import time
-import sys
 from vna_anritsu_MS20xxC_api import vna_api
 from rotary_table_api import rotary_table_api as rt_api
 from rotary_table_api import rotary_table_messages as rt_msg
@@ -58,15 +57,14 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
     click.secho(f"{resp.voltage:2.2f} V", fg=volt_fg)
     if not resp.is_voltage_OK:
         click.secho("Inncorrect supply voltage! Connect USB power source that support USB Quick Charge 2.0 with 12V output voltage.", fg="red")
-        # return
+        return
     rt.send_request(rt_msg.RequestDisable(rt_id))
     click.secho("Rotate to home position by hands and click any key.")
     click.pause()
     rt.send_request(rt_msg.RequestHalt(rt_id))
     rt.send_request(rt_msg.RequestSetHome(rt_id))
-    # vna.set_freq_settings(3E6, 10E9, 101)
-    # vna.set_traces_as_s2p()
-    # vna.set_is_sweep_continuous(False)
+    vna.set_traces_as_s2p()
+    vna.set_is_sweep_continuous(False)
 
     matplotlib.rcParams['toolbar'] = 'None' 
     fig, ax = plt.subplots()
@@ -74,7 +72,9 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
     plots_data = []
     if len(f_show) > 0:
         ax.set_ylim(-80, 0)
-        ax.set_xlim(0, 360)        
+        ax.set_xlim(0, 360)    
+        ax.set_ylabel("S_21 (dB)")    
+        ax.set_xlabel("Angle (degrees)")    
         for f in f_show:
             line = ax.plot([],[])[0]
             line.set_label(f"f={f:e}")
@@ -85,14 +85,14 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
         plt.show(block=False)
     angle_points = np.arange(0, 360, angle_step)
     try:
-        with click.progressbar(angle_points, label="Making measurements",
+        with click.progressbar(angle_points, label="Measuring in progress",
             show_eta=True, show_pos=True) as bar:
             for angle in bar:
                 rt.send_request(rt_msg.RequestRotate(rt_id, angle, speed))
                 while(rt.send_request(rt_msg.RequestGetStatus(rt_id)).is_rotating):
                     time.sleep(0.2)
                 time.sleep(0.5)
-                s2p = vna_single_measure(vna, test_data=True)
+                s2p = vna_single_measure(vna)
                 s2p.comments = f"angle={angle:f}deg"
                 filename = filename_from_angle_n_s2pname(s2p_name, angle, angle_step)                
                 s2p.write_touchstone(filename, s2p_dir, skrf_comment=False)
@@ -112,7 +112,7 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show)
         click.secho("Halting rotary table...")
         time.sleep(1)
         resp = rt.send_request(rt_msg.RequestDisable(rt_id))
-        click.secho("Disable rotary table and exit")
+        click.secho("Disabling rotary table and exit")
         return
     if len(f_show) > 0:
         plt.draw()
@@ -123,10 +123,10 @@ def vna_single_measure(vna: vna_api.VNA, test_data=False) -> rf.Network:
         vna.start_single_sweep_await()
         s2p = vna.get_traces_data_as_s2p()
     else:
-        # time.sleep(1)
+        time.sleep(1)
         freq = rf.Frequency(1, 10, 101, 'ghz')
         s = np.random.rand(101, 2, 2) + 1j*np.random.rand(101, 2, 2)
-        return rf.Network(frequency=freq, s=s, name='random values 2-port')
+        return rf.Network(frequency=freq, s=s*1E-2, name='random values 2-port')
 
 @click.group(name="antenna-meas")
 def cli():
