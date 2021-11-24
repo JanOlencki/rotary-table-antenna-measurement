@@ -62,12 +62,11 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show,
         click.secho("Inncorrect supply voltage! Connect USB power source that support USB Quick Charge 2.0 with 12V output voltage.", fg="red")
             return
     rt.send_request(rt_msg.RequestDisable(rt_id))
-    click.secho("Rotate to home position by hands and click any key.")
+    click.pause("Rotate antenna to home position by hands and press any key to continue...")
     click.pause()
-    rt.send_request(rt_msg.RequestHalt(1))
-    time.sleep(0.5)
-    rt.send_request(rt_msg.RequestHalt(0))
-    time.sleep(0.5)
+    rt.send_request(rt_msg.RequestHalt(rt_id))
+    
+    time.sleep(0.1)
     rt.send_request(rt_msg.RequestSetHome(rt_id))
     vna.set_traces_as_s2p()
     vna.set_is_sweep_continuous(False)
@@ -79,6 +78,8 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show,
     if len(f_show) > 0:
         ax.set_ylim(-100, 0)
         ax.set_xlim(0, 360)        
+        ax.set_ylabel("S_21 (dB)")
+        ax.set_xlabel("Angle (degrees)")
         for f in f_show:
             line = ax.plot([],[])[0]
             line.set_label(f"f={f:e}")
@@ -89,7 +90,7 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show,
         plt.show(block=False)
     angle_points = np.arange(0, 360, angle_step)
     try:
-        with click.progressbar(angle_points, label="Making measurements",
+        with click.progressbar(angle_points, label="Measuring in progress",
             show_eta=True, show_pos=True) as bar:
             for angle in bar:
                 rt.send_request(rt_msg.RequestRotate(rt_id, angle, speed))
@@ -116,7 +117,7 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show,
         click.secho("Halting rotary table...")
         time.sleep(1)
         resp = rt.send_request(rt_msg.RequestDisable(rt_id))
-        click.secho("Disable rotary table and exit")
+        click.secho("Disabling rotary table and exit")
         return
     if len(f_show) > 0:
         plt.draw()
@@ -138,6 +139,7 @@ def vna_meas(vna_name):
     click.echo(f"sweep={sweep_dur:.2f}s, transmittion={trans_dur:.2f}s")
     s2p.plot_s_db()
     plt.show()
+    click.pause()
 
 def vna_single_measure(vna: vna_api.VNA, test_data=False) -> rf.Network:
     if not test_data:
