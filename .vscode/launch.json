@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: example",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/example.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src/"
+        },
+        {
             "name": "Python: antenna_meas.list",
             "type": "python",
             "request": "launch",
