@@ -62,7 +62,6 @@ def meas(rt_port, rt_id, vna_name, s2p_name, s2p_dir, speed, angle_step, f_show,
             return
     rt.send_request(rt_msg.RequestDisable(rt_id))
     click.pause("Rotate antenna to home position by hands and press any key to continue...")
-    click.pause()
     rt.send_request(rt_msg.RequestHalt(rt_id))
     
     time.sleep(0.1)
