@@ -1,5 +1,5 @@
 from vna_anritsu_MS20xxC_api import vna_api
-import numpy as np
+from vna_anritsu_MS20xxC_api.vna_types import DataFormat
 
 def test_checking_device_indentification():
     assert vna_api.is_instrument_supported("\"Anritsu,MS2028C/10/2,62011032,1.23\"") == True
@@ -10,14 +10,14 @@ def test_checking_device_indentification():
     assert vna_api.is_instrument_supported("") == False
 
 def test_converting_trace_data():
-    assert vna_api.convert_from_trace_data("#") == None
-    assert vna_api.convert_from_trace_data("#0") == None
-    assert vna_api.convert_from_trace_data("#1") == None
-    assert vna_api.convert_from_trace_data("#12") == None
-    assert vna_api.convert_from_trace_data("#12test") == ["test"]
-    assert vna_api.convert_from_trace_data("#242test") == ["test"]
-    assert vna_api.convert_from_trace_data("#242test,") == ["test"]
-    assert vna_api.convert_from_trace_data("#242test,test") == ["test","test"]
+    assert vna_api.convert_from_trace_data("#", DataFormat.ASCII) == None
+    assert vna_api.convert_from_trace_data("#0", DataFormat.ASCII) == None
+    assert vna_api.convert_from_trace_data("#1", DataFormat.ASCII) == None
+    assert vna_api.convert_from_trace_data("#12", DataFormat.ASCII) == None
+    assert vna_api.convert_from_trace_data("#12test", DataFormat.ASCII) == ["test"]
+    assert vna_api.convert_from_trace_data("#242test", DataFormat.ASCII) == ["test"]
+    assert vna_api.convert_from_trace_data("#242test,", DataFormat.ASCII) == ["test"]
+    assert vna_api.convert_from_trace_data("#242test,test", DataFormat.ASCII) == ["test","test"]
 
     assert (vna_api.convert_data_to_complex([]) == []).all()
     assert (vna_api.convert_data_to_complex([1]) == [1+0j]).all()
